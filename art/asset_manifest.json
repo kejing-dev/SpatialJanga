@@ -1,0 +1,30 @@
+{
+  "units": "meters",
+  "blender_up_axis": "Z",
+  "glb_up_axis": "Y",
+  "block_count": 54,
+  "layers": 18,
+  "blocks_per_layer": 3,
+  "block_dimensions_m": [
+    0.075,
+    0.025,
+    0.015
+  ],
+  "bevel_m": 0.00045,
+  "base_dimensions_m": [
+    0.24,
+    0.24,
+    0.012
+  ],
+  "tower_height_without_base_m": 0.27,
+  "tower_height_with_base_m": 0.282,
+  "triangles_per_block": 188,
+  "original_textures": true,
+  "texture_resolution": 1024,
+  "runtime_note": "glTF carries appearance, transforms and extras. Blender rigid bodies are not exported as a working physics system; configure Box colliders and constraints in the app.",
+  "checks": {
+    "block_count": true,
+    "independent_objects": true,
+    "unit_scale": true
+  }
+}

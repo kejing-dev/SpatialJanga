@@ -1,0 +1,41 @@
+{
+  "themes": {
+    "natural": [
+      "natural"
+    ],
+    "walnut": [
+      "walnut"
+    ],
+    "mono": [
+      "charcoal",
+      "ivory"
+    ],
+    "pastel": [
+      "rose",
+      "peach",
+      "butter",
+      "mint",
+      "milkblue",
+      "lavender"
+    ]
+  },
+  "palette_srgb": {
+    "walnut": "694832",
+    "charcoal": "353A40",
+    "ivory": "F1EADF",
+    "rose": "E7ADAD",
+    "peach": "EBC8AA",
+    "butter": "E7DDA9",
+    "mint": "B6D2BC",
+    "milkblue": "B6CFE4",
+    "lavender": "CCBFDD"
+  },
+  "alpha": 1,
+  "dimensions_m": [
+    0.075,
+    0.015,
+    0.025
+  ],
+  "source": "Original Tower Wood Blender mesh and procedural grain",
+  "preview": "320x280 Cycles; same layer coloring as runtime"
+}

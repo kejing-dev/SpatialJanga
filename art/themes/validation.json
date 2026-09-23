@@ -1,0 +1,65 @@
+[
+  {
+    "file": "butter.glb",
+    "triangles": 188,
+    "bytes": 39616,
+    "sha256": "feda3e4dd939eb492cb8331fbac1d5508ccb252160fc62f4cc62154b479d3be7",
+    "alpha": "OPAQUE"
+  },
+  {
+    "file": "charcoal.glb",
+    "triangles": 188,
+    "bytes": 39620,
+    "sha256": "2cd77e6316f23a9303b97923fc93601076a9a85a4a13243874a6c25b9a14d378",
+    "alpha": "OPAQUE"
+  },
+  {
+    "file": "ivory.glb",
+    "triangles": 188,
+    "bytes": 39612,
+    "sha256": "893a0360d073e674a865d9a94e6b3fc56c949d298a126bdfe36ef7900f34cc9a",
+    "alpha": "OPAQUE"
+  },
+  {
+    "file": "lavender.glb",
+    "triangles": 188,
+    "bytes": 39620,
+    "sha256": "a3320fda07bae31fa17793c1dfe3cdc910add3ee8fedb17ff84561196f9c4510",
+    "alpha": "OPAQUE"
+  },
+  {
+    "file": "milkblue.glb",
+    "triangles": 188,
+    "bytes": 39620,
+    "sha256": "40b784a85964ae0ecdf8704e26e3652e115acc2735343c91978ed82c4e9155c5",
+    "alpha": "OPAQUE"
+  },
+  {
+    "file": "mint.glb",
+    "triangles": 188,
+    "bytes": 39612,
+    "sha256": "3fde987e8b2b87652cc6eb7a584b32426a9d7b94a0b7175fd5bb9657d330c05d",
+    "alpha": "OPAQUE"
+  },
+  {
+    "file": "peach.glb",
+    "triangles": 188,
+    "bytes": 39612,
+    "sha256": "0c6459aa2bea36581d6609f7b491d159ddac9c0607de734121cd8949de35c703",
+    "alpha": "OPAQUE"
+  },
+  {
+    "file": "rose.glb",
+    "triangles": 188,
+    "bytes": 39612,
+    "sha256": "b636d310d7e33b817c8688d711cd993502148cac11f266dc2d67cdbb4f6b3b1e",
+    "alpha": "OPAQUE"
+  },
+  {
+    "file": "walnut.glb",
+    "triangles": 188,
+    "bytes": 39616,
+    "sha256": "9847d34b0e4766ac109b0024a851cd34c1b5fb4c239d9a40767aabf33201a686",
+    "alpha": "OPAQUE"
+  }
+]

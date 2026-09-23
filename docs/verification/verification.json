@@ -1,0 +1,30 @@
+{
+  "sdk": "6.1.9",
+  "device": "emulator-5554 / Pico_Emulator_6_1",
+  "unit_tests": {
+    "tests": 20,
+    "failures": 0
+  },
+  "instrumentation_tests": {
+    "tests": 3,
+    "failures": 0,
+    "target": "emulator-5554 Pico_Emulator_6_1",
+    "scope": "Two successful targeted invocations: full gameplay regression + dedicated theme picker preview. Four palettes switched with 54 visual children, unchanged transforms and score. No real hand-input verification."
+  },
+  "full_spatial_screenshot": "VERIFIED: CLI capture includes home wood tower, base and dark panel in Shared Space",
+  "real_hand_tracking": "NOT_VERIFIED: instrumentation calls scene handlers",
+  "physics_model": "Static resting bodies; bounded direct grab; dynamic upper blocks and released block; static again after scoring. General held-body swept collisions not implemented.",
+  "apk_sha256": "8cdc0ea288cfd13496d738095866a04e2f1c336b828a14fd76d904048094f86b",
+  "themes": {
+    "names": [
+      "natural",
+      "walnut",
+      "mono",
+      "pastel"
+    ],
+    "opaque": true,
+    "new_glbs": 9,
+    "triangles_per_block": 188,
+    "settings_render": "panels/theme-picker.png"
+  }
+}
