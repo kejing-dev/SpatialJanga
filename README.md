@@ -98,6 +98,8 @@ Full report: [`docs/verification/`](docs/verification/) (`verification.json`, ra
 ## Design references
 
 - Figma: <https://www.figma.com/design/JfpAG3K8uxFkc7H2p59hFf/> (28 state frames and a UX branch map; an editable design file, not a wired prototype).
+- The v1.1.0 APK is attached to the GitHub Release only (<https://github.com/kejing-dev/SpatialJanga/releases/tag/v1.1.0>) and is no longer copied into `releases/`.
+- v1.1 design changes (2026-09-23): [`docs/DESIGN-CHANGES-v1.1.zh-CN.md`](docs/DESIGN-CHANGES-v1.1.zh-CN.md), mirrored on Figma page "03 · v1.1 变更". Implemented on 2026-09-24: 1.5× blocks with the 0.8 × 0.9 × 0.5 m container, the collapsible icon HUD with a caption chip above the tower, and a low-lag held-block follow. Not yet: fingertip-contact grabbing, mid-air hover and the landing zone.
 - PRD v0.1, 2026-09-16, with the 2026-09-17 implementation addendum: [`docs/PRD.zh-CN.md`](docs/PRD.zh-CN.md).
 
 ## Assets and licences

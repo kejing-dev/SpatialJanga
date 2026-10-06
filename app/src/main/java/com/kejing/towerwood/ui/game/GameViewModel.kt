@@ -2,6 +2,7 @@ package com.kejing.towerwood.ui.game
 
 import androidx.lifecycle.ViewModel
 import com.kejing.towerwood.data.repository.GameRepository
+import com.kejing.towerwood.scene.TowerScene
 import com.kejing.towerwood.ui.game.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,7 +42,7 @@ class GameViewModel(private val repository: GameRepository) : ViewModel() {
     fun settings() { helpPrevious=mutable.value.phase;mutable.value=mutable.value.copy(phase=Phase.SETTINGS) }
     fun setSound(enabled:Boolean) { repository.saveSound(enabled);mutable.value=mutable.value.copy(soundEnabled=enabled) }
     fun setGuides(enabled:Boolean) { mutable.value=mutable.value.copy(guidesEnabled=enabled) }
-    fun hasSavedRound() = !repository.round().isNullOrBlank()
+    fun hasSavedRound() = repository.round()?.split("|")?.getOrNull(2) == TowerScene.SNAPSHOT_TAG
     fun savedRound() = repository.round().orEmpty()
     fun restored(score: Int, seconds: Int) { mutable.value = mutable.value.copy(phase=Phase.PAUSED,score=score,seconds=seconds,selected=null,recovered=true,message="已恢复上次完成的回合，本局为恢复练习，不更新纪录");previous=Phase.PLAYING }
     fun saveInitial(snapshot: String) { repository.saveRound("0|0|$snapshot") }

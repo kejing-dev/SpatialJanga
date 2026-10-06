@@ -98,6 +98,8 @@ ANDROID_SERIAL=emulator-5554 ./gradlew connectedDebugAndroidTest
 ## 设计参考
 
 - Figma：<https://www.figma.com/design/JfpAG3K8uxFkc7H2p59hFf/>（28 个状态画面与 UX 分支图；可编辑设计稿，不是已接线的点击原型）。
+- v1.1.0 APK 只挂在 GitHub Release（<https://github.com/kejing-dev/SpatialJanga/releases/tag/v1.1.0>），不再放进仓库的 `releases/`。
+- v1.1 设计变更（2026-09-23）：[`docs/DESIGN-CHANGES-v1.1.zh-CN.md`](docs/DESIGN-CHANGES-v1.1.zh-CN.md)，对应 Figma 页面「03 · v1.1 变更」。2026-09-24 已实现：木块放大 1.5 倍与 0.8 × 0.9 × 0.5 m 容器、图标化可收起 HUD 与塔顶提示浮标、持块低延迟跟随；未实现：指尖接触抓取、空中悬停、落区重力。
 - PRD v0.1（2026-09-16）及 2026-09-17 实现补充：[`docs/PRD.zh-CN.md`](docs/PRD.zh-CN.md)。
 
 ## 资源与许可

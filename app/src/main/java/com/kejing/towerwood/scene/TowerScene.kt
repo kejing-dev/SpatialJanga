@@ -28,9 +28,27 @@ import kotlin.math.*
 
 /** Owns physics and transforms; high-frequency input never round-trips through Compose. */
 class TowerScene(private val vm: GameViewModel) {
+    companion object {
+        /** v1.1: block geometry, spacing, thresholds and the base plate all derive from this one factor (design change A). */
+        const val BLOCK_SCALE = 1.5f
+        /** Base plate height inside the 0.9 m tall volumetric container. */
+        const val BASE_Y = -.40f
+        const val LAYER_HEIGHT = .01502f * BLOCK_SCALE
+        const val SLOT_WIDTH = .0251f * BLOCK_SCALE
+        /** Highest point a held block may be lifted to; the container top is at +0.45 m. */
+        const val TOP_CLAMP = .42f
+        /** Saved rounds carry this geometry tag; a round recorded at another scale is ignored rather than restored. */
+        const val SNAPSHOT_TAG = "S150"
+        /** Held-block follow: ~50 ms exponential lag feels attached without visible inertia; the cap only guards pose jumps. */
+        private const val FOLLOW_TAU = .05f
+        private const val MAX_FOLLOW_SPEED = 1.2f
+        /** Resting centre height of a block that starts in the given layer. */
+        fun restY(layer: Int) = BASE_Y + (.012f + .0075f) * BLOCK_SCALE + layer * LAYER_HEIGHT
+    }
+    private val S = BLOCK_SCALE
     private val updateScope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
     val root = Entity()
-    private val rules = StackRulesUseCase()
+    private val rules = StackRulesUseCase(S)
     private val themeModels=mutableMapOf<String,Entity>()
     private val blocks = mutableListOf<Entity>()
     private val previous = mutableMapOf<Int, Vector3>()
@@ -50,7 +68,6 @@ class TowerScene(private val vm: GameViewModel) {
     private var lastClock = android.os.SystemClock.elapsedRealtime()
     private var highest = 17
     private var topCount = 0
-    private val baseY = -.16f
     private var ready = false
     private var live = false
     private var sleeping=true
@@ -59,8 +76,10 @@ class TowerScene(private val vm: GameViewModel) {
     private var blockStart = Quat()
     private var rotationTarget = Quat()
     private val guides=mutableListOf<Entity>()
+    private var captionAnchor: Entity? = null
+    private var captionOrigin = Vector3.ZERO
     private val material = PhysicsMaterialResource(.8f,.65f,0f)
-    private val shape = ShapeResource.createBox(Vector3(.074f,.0145f,.024f))
+    private val shape = ShapeResource.createBox(Vector3(.074f*S,.0145f*S,.024f*S))
     init { root.components.set(world) }
     suspend fun load() {
         val model = Entity.loadSuspend("asset://wood_block.glb")
@@ -69,10 +88,10 @@ class TowerScene(private val vm: GameViewModel) {
             themeModels[it]=Entity.loadSuspend("asset://themes/$it.glb")
         }
         val base = Entity.loadSuspend("asset://base.glb")
-        base.components.get<TransformComponent>()?.setPosition(Vector3(0f,baseY+.006f,0f))
+        base.components.get<TransformComponent>()?.setPosition(Vector3(0f,BASE_Y+.006f*S,0f))?.scaleBy(S)
         val collider = Entity().apply {
-            components.get<TransformComponent>()!!.setPosition(Vector3(0f,baseY+.006f,0f))
-            components.set(CollisionComponent(listOf(ShapeResource.createBox(Vector3(.24f,.012f,.24f))), material))
+            components.get<TransformComponent>()!!.setPosition(Vector3(0f,BASE_Y+.006f*S,0f))
+            components.set(CollisionComponent(listOf(ShapeResource.createBox(Vector3(.24f*S,.012f*S,.24f*S))), material))
         }
         root.addChild(base); root.addChild(collider)
         repeat(54) { id ->
@@ -81,12 +100,12 @@ class TowerScene(private val vm: GameViewModel) {
                 components.set(CollisionComponent(listOf(shape),material))
                 components.set(InteractableComponent())
                 components.set(HoverEffectComponent())
-                addChild(requireNotNull(model.clone()))
+                addChild(visual(model))
             }
             root.addChild(e); blocks.add(e)
         }
         repeat(3) { slot ->
-            val guide=requireNotNull(model.clone())
+            val guide=visual(model)
             guide.components.set(OpacityControllerComponent(.18f))
             root.addChild(guide);guides.add(guide)
         }
@@ -100,19 +119,27 @@ class TowerScene(private val vm: GameViewModel) {
             }
         }
         Log.i("TowerWood", "SCENE_BOUNDS ${root.getVisualBounds(relativeTo=root,recursive=true,enabledOnly=true)}")
-        Log.i("TowerWood", "SCENE_READY blocks=54 dimensions=0.075x0.015x0.025m container=volumetric")
+        Log.i("TowerWood", "SCENE_READY blocks=54 scale=$S dimensions=${.075f*S}x${.015f*S}x${.025f*S}m container=volumetric")
     }
+    /** Clones a wood model and applies the block scale to the visual only; colliders are sized explicitly. */
+    private fun visual(model: Entity) = requireNotNull(model.clone()).also { it.components.get<TransformComponent>()?.scaleBy(S) }
     fun applyTheme(theme:WoodTheme) {
         if(themeModels.isEmpty())return
         blocks.forEachIndexed { id,entity ->
             entity.getChildren().toList().forEach { it.destroy() }
-            entity.addChild(requireNotNull(themeModels.getValue(theme.assetForBlock(id)).clone()))
+            entity.addChild(visual(themeModels.getValue(theme.assetForBlock(id))))
         }
         vm.setTheme(theme)
     }
+    /** Parents the caption attachment in container space and keeps it riding above the current top layer. */
+    fun attachCaption(entity: Entity, origin: Vector3) {
+        captionAnchor=entity; captionOrigin=origin
+        entity.components.get<TransformComponent>()?.setPosition(captionPosition())
+    }
+    private fun captionPosition() = Vector3(captionOrigin.x, captionOrigin.y+topSurfaceY()+.07f*S, captionOrigin.z+.04f)
     internal fun themeInspection()=vm.uiState.value.woodTheme to blocks.map { it.getChildren().size }
     private fun transform(id: Int) = blocks[id].components.get<TransformComponent>()!!
-    private fun body() = RigidBodyComponent(MassProperties(.014f, Vector3(.000000992f,.000007292f,.000006825f)),RigidBodyMode.DYNAMIC).apply {
+    private fun body() = RigidBodyComponent(MassProperties(.014f*S*S*S, Vector3(.000000992f,.000007292f,.000006825f)*(S*S*S*S*S)),RigidBodyMode.DYNAMIC).apply {
         linearDamping=.3f; angularDamping=.8f; isAffectedByGravity=true
     }
     fun reset() {
@@ -122,7 +149,7 @@ class TowerScene(private val vm: GameViewModel) {
             layers[id]=id/3
             val layer=id/3; val slot=id%3-1
             val t=transform(id)
-            t.setPosition(Vector3(if(layer%2==0) 0f else slot*.0251f, baseY+.012f+.0075f+layer*.01502f, if(layer%2==0)slot*.0251f else 0f))
+            t.setPosition(Vector3(if(layer%2==0) 0f else slot*SLOT_WIDTH, restY(layer), if(layer%2==0)slot*SLOT_WIDTH else 0f))
             t.setEulerAngles(EulerAngles(yaw=if(layer%2==0)0f else 90f))
             previous[id]=t.position
         }
@@ -181,7 +208,7 @@ class TowerScene(private val vm: GameViewModel) {
         if(held==null)return
         val axis=blockStart.rotateVector(Vector3(1f,0f,0f))
         val constrained=if(extracted)delta else if(abs(axis.x)>.7f)Vector3(delta.x,0f,0f) else Vector3(0f,0f,delta.z)
-        target=Vector3((target.x+constrained.x).coerceIn(-.15f,.15f),(target.y+constrained.y).coerceIn(baseY+.018f,.279f),(target.z+constrained.z).coerceIn(-.15f,.15f))
+        target=Vector3((target.x+constrained.x).coerceIn(-.15f*S,.15f*S),(target.y+constrained.y).coerceIn(BASE_Y+.018f*S,TOP_CLAMP),(target.z+constrained.z).coerceIn(-.15f*S,.15f*S))
     }
     fun release() {
         val id=held ?:return
@@ -193,11 +220,11 @@ class TowerScene(private val vm: GameViewModel) {
         held=null;freeze(false);releasedTime=0f;stable=0f;vm.released()
     }
     fun rotate(wrist: Quat) { val first=wristStart ?: return; if(held!=null)rotationTarget=wrist*first.conjugate()*blockStart }
-    private fun topSurfaceY() = blocks.indices.filter { layers[it]==highest }.maxOfOrNull { transform(it).position.y+.015f } ?: (baseY+.012f+.0075f+(highest+1)*.01502f)
+    private fun topSurfaceY() = blocks.indices.filter { layers[it]==highest }.maxOfOrNull { transform(it).position.y+.015f*S } ?: restY(highest+1)
     private fun updateGuides() {
         guides.forEachIndexed { slot,e ->
             e.components.get<TransformComponent>()?.apply {
-                setPosition(Vector3(if((highest+1)%2==0)0f else (slot-1)*.0251f,topSurfaceY(),if((highest+1)%2==0)(slot-1)*.0251f else 0f))
+                setPosition(Vector3(if((highest+1)%2==0)0f else (slot-1)*SLOT_WIDTH,topSurfaceY(),if((highest+1)%2==0)(slot-1)*SLOT_WIDTH else 0f))
                 setEulerAngles(EulerAngles(yaw=if((highest+1)%2==0)0f else 90f))
             }
             e.enabled=selected!=null && vm.uiState.value.guidesEnabled
@@ -214,22 +241,27 @@ class TowerScene(private val vm: GameViewModel) {
         val activeSeconds=(now-lastClock)/1000f;lastClock=now
         elapsed+=activeSeconds;tickSeconds+=activeSeconds
         if(tickSeconds>=1f) { val count=tickSeconds.toInt();tickSeconds-=count;vm.tick(count) }
+        captionAnchor?.components?.get<TransformComponent>()?.setPosition(captionPosition())
         if(sleeping)return
         blocks.forEachIndexed { id,e ->
             if(layers[id]<activeFloor && id!=selected)return@forEachIndexed
             val t=transform(id); val p=t.position;val last=previous[id] ?:p
             val velocity=(p-last)*(1f/dt)
             if(id==held) {
+                // v1.1: critically damped follow instead of the 0.08 m/s crawl, so the block tracks the hand without inertia.
                 val step=target-handle
-                val distance=sqrt(step.x*step.x+step.y*step.y+step.z*step.z)
-                if(distance>0f)handle=handle+step*(min(distance,.08f*dt)/distance)
+                var move=step*(1f-exp(-dt/FOLLOW_TAU))
+                val length=sqrt(move.x*move.x+move.y*move.y+move.z*move.z)
+                val cap=MAX_FOLLOW_SPEED*dt
+                if(length>cap)move=move*(cap/length)
+                handle=handle+move
                 // Direct grab follows a bounded handle with a collider; release restores the rigid body.
                 // Force servos are unstable when the background emulator delivers sparse pose updates.
                 t.setPosition(handle).setQuaternion(rotationTarget)
-                if(abs(handle.x-origin.x)>.077f || abs(handle.z-origin.z)>.077f)extracted=true
+                if(abs(handle.x-origin.x)>.077f*S || abs(handle.z-origin.z)>.077f*S)extracted=true
             }
-            val droppedSelection=id==selected && held==null && releasedTime>.35f && (abs(p.x)>.06f || abs(p.z)>.06f) && p.y<topSurfaceY()-.022f
-            if(id!=held && (droppedSelection || (elapsed>1.5f && rules.hasFallen(p.y,baseY,layers[id],(acos(t.quaternion.rotateVector(Vector3(0f,1f,0f)).y.coerceIn(-1f,1f))*180f/PI.toFloat()))))) {
+            val droppedSelection=id==selected && held==null && releasedTime>.35f && (abs(p.x)>.06f*S || abs(p.z)>.06f*S) && p.y<topSurfaceY()-.022f*S
+            if(id!=held && (droppedSelection || (elapsed>1.5f && rules.hasFallen(p.y,BASE_Y,layers[id],(acos(t.quaternion.rotateVector(Vector3(0f,1f,0f)).y.coerceIn(-1f,1f))*180f/PI.toFloat()))))) {
                 live=false;freeze(true);vm.finished("木塔倒下了。每一次尝试，都更接近平衡。");Log.i("TowerWood","ROUND_FINISHED block=$id position=$p rotation=${t.eulerAngles} score=${vm.uiState.value.score}");return
             }
             if(id==selected && held==null) {
@@ -238,15 +270,15 @@ class TowerScene(private val vm: GameViewModel) {
                 val targetY=topSurfaceY()
                 val axis=t.quaternion.rotateVector(Vector3(1f,0f,0f))
                 val rightDirection=if((highest+1)%2==0)abs(axis.x)>.96f else abs(axis.z)>.96f
-                val supported=blocks.indices.any { other -> other!=id && layers[other]==highest && transform(other).position.let { abs(it.y-(p.y-.015f))<.005f && abs(it.x-p.x)<.045f && abs(it.z-p.z)<.045f } }
-                if(rightDirection && supported && rules.isSupported(p.x,p.y,p.z,targetY,(acos(t.quaternion.rotateVector(Vector3(0f,1f,0f)).y.coerceIn(-1f,1f))*180f/PI.toFloat())) && movement<.00025f)stable+=dt else stable=0f
+                val supported=blocks.indices.any { other -> other!=id && layers[other]==highest && transform(other).position.let { abs(it.y-(p.y-.015f*S))<.005f*S && abs(it.x-p.x)<.045f*S && abs(it.z-p.z)<.045f*S } }
+                if(rightDirection && supported && rules.isSupported(p.x,p.y,p.z,targetY,(acos(t.quaternion.rotateVector(Vector3(0f,1f,0f)).y.coerceIn(-1f,1f))*180f/PI.toFloat())) && movement<.00025f*S)stable+=dt else stable=0f
                 if(stable>=1f) {
                     layers[id]=highest+1; topCount++
                     if(topCount==3) { highest++;topCount=0 }
                     selected=null;stable=0f;vm.scored(snapshot());sleeping=true;freeze(false)
                     if(highest>=28) {live=false;freeze(true);vm.finished("达到本空间的安全高度，挑战完成！")}
                 } else if(releasedTime>1.2f) {
-                    if(!extracted && (p-origin).let{abs(it.x)<.003f&&abs(it.y)<.003f&&abs(it.z)<.003f}) { selected=null;if(undoHistory.isNotEmpty())undoHistory.removeAt(undoHistory.lastIndex);vm.undoAvailable(undoHistory.isNotEmpty());vm.cancelled();sleeping=true;freeze(false) }
+                    if(!extracted && (p-origin).let{abs(it.x)<.003f*S&&abs(it.y)<.003f*S&&abs(it.z)<.003f*S}) { selected=null;if(undoHistory.isNotEmpty())undoHistory.removeAt(undoHistory.lastIndex);vm.undoAvailable(undoHistory.isNotEmpty());vm.cancelled();sleeping=true;freeze(false) }
                     else if(vm.uiState.value.phase==Phase.SETTLING)vm.invalid()
                 }
             }
@@ -254,11 +286,11 @@ class TowerScene(private val vm: GameViewModel) {
         }
         updateGuides()
     }
-    private fun snapshot() = "$highest,$topCount|" + blocks.mapIndexed { i,_ -> val t=transform(i); "$i,${layers[i]},${t.position.x},${t.position.y},${t.position.z},${t.quaternion.x},${t.quaternion.y},${t.quaternion.z},${t.quaternion.w}" }.joinToString(";")
+    private fun snapshot() = "$SNAPSHOT_TAG|$highest,$topCount|" + blocks.mapIndexed { i,_ -> val t=transform(i); "$i,${layers[i]},${t.position.x},${t.position.y},${t.position.z},${t.quaternion.x},${t.quaternion.y},${t.quaternion.z},${t.quaternion.w}" }.joinToString(";")
     fun restore(value: String) {
         try {
-            val sections=value.split("|");require(sections.size==4)
-            val meta=sections[2].split(","); val poses=sections[3].split(";");require(poses.size==54)
+            val sections=value.split("|");require(sections.size==5 && sections[2]==SNAPSHOT_TAG)
+            val meta=sections[3].split(","); val poses=sections[4].split(";");require(poses.size==54)
             // Parse and validate before mutating the live scene.
             val parsed=poses.map { it.split(",").map(String::toFloat) }
             require(parsed.all { it.size==9 && it.all(Float::isFinite) })
@@ -274,5 +306,5 @@ class TowerScene(private val vm: GameViewModel) {
     }
     internal fun grabDiagnostics() = "held=$held selected=$selected target=$target handle=$handle pose=${selected?.let { transform(it).position }} phase=${vm.uiState.value.phase} top=${(51..53).map { transform(it).position }}"
     internal fun inspection() = Triple(ready,vm.uiState.value,blocks.mapIndexed { id,_ -> transform(id).position })
-    fun close() {updateScope.cancel();live=false;root.destroy();blocks.clear();themeModels.values.forEach { it.destroy() };themeModels.clear()}
+    fun close() {updateScope.cancel();live=false;captionAnchor=null;root.destroy();blocks.clear();themeModels.values.forEach { it.destroy() };themeModels.clear()}
 }

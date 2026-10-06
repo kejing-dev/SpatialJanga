@@ -4,6 +4,7 @@ import android.content.Intent
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.kejing.towerwood.scene.RuntimeSession
+import com.kejing.towerwood.scene.TowerScene
 import com.kejing.towerwood.ui.game.Phase
 import org.junit.Assert.*
 import org.junit.Test
@@ -12,6 +13,8 @@ import kotlin.math.abs
 
 @RunWith(AndroidJUnit4::class)
 class RuntimePhysicsTest {
+    private val S=TowerScene.BLOCK_SCALE
+    private val scene get() = RuntimeSession.scene!!.get()!!
     @Test fun towerLoadsSettlesAndPausesWithoutFalling() {
         val instrumentation=InstrumentationRegistry.getInstrumentation()
         val context=instrumentation.targetContext
@@ -23,8 +26,9 @@ class RuntimePhysicsTest {
             if(!ready)Thread.sleep(250)
         }
         assertTrue("Scene must finish loading in emulator",ready)
-        val scene=RuntimeSession.scene!!.get()!!
-        Thread.sleep(1500) // Wait for the new spatial window to finish focus delivery.
+        // The instrumentation launch path can rebuild the SpatialView content once the container gains focus,
+        // which recreates GameScreen and its TowerScene; always resolve the live instance instead of caching it.
+        Thread.sleep(3500)
         instrumentation.runOnMainSync { scene.start() }
         Thread.sleep(5000)
         // The emulator may deliver a delayed initial focus-loss notification after launch.
@@ -35,9 +39,9 @@ class RuntimePhysicsTest {
             val (_,state,poses)=scene.inspection()
             assertEquals("A new tower must remain upright without input",Phase.PLAYING,state.phase)
             assertEquals(54,poses.size)
-            assertTrue("Physics bodies must remain above base",poses.all { it.y>-.16f })
+            assertTrue("Physics bodies must remain above base",poses.all { it.y>TowerScene.BASE_Y })
             assertEquals(0,state.score)
-            assertTrue("Tower remains tall",poses.maxOf { it.y }>.09f)
+            assertTrue("Tower remains tall",poses.maxOf { it.y }>TowerScene.restY(17)-.01f)
             android.util.Log.i("TowerWoodValidation","IDLE_STABLE_5_SECONDS blocks=${poses.size} minY=${poses.minOf { it.y }} maxY=${poses.maxOf { it.y }}")
             scene.pause()
         }
@@ -53,14 +57,14 @@ class RuntimePhysicsTest {
             scene.resume()
             val candidate=scene.root.getChildren().first { it.getName()=="Wood_49" }
             scene.grab(candidate)
-            scene.drag(com.pico.spatial.core.math.Vector3(.10f,0f,0f))
+            scene.drag(com.pico.spatial.core.math.Vector3(.10f*S,0f,0f))
         }
-        waitForPose { it.x > .08f }
+        waitForPose { it.x > .08f*S }
         instrumentation.runOnMainSync {
             val (_,state,poses)=scene.inspection()
             android.util.Log.i("TowerWoodValidation","EXTRACTION phase=${state.phase} block49=${poses[49]}")
             assertEquals(Phase.HOLDING,state.phase)
-            assertTrue("Force based grab moves upper block",poses[49].x>.06f)
+            assertTrue("Force based grab moves upper block",poses[49].x>.06f*S)
             scene.pause()
         }
         captureRoots("paused")
@@ -69,13 +73,13 @@ class RuntimePhysicsTest {
             scene.resume()
             extractionX=scene.inspection().third[49].x
             scene.grab(scene.root.getChildren().first { it.getName()=="Wood_49" })
-            scene.drag(com.pico.spatial.core.math.Vector3(0f,.075f,0f))
+            scene.drag(com.pico.spatial.core.math.Vector3(0f,.075f*S,0f))
         }
-        waitForPose { it.y > .16f }
+        waitForPose { it.y > TowerScene.restY(16)+.06f*S }
         instrumentation.runOnMainSync { scene.drag(com.pico.spatial.core.math.Vector3(-extractionX,0f,0f)) }
-        waitForPose { abs(it.x)<.004f }
-        instrumentation.runOnMainSync { scene.drag(com.pico.spatial.core.math.Vector3(0f,-.045f,0f)) }
-        waitForPose { it.y<.135f }
+        waitForPose { abs(it.x)<.004f*S }
+        instrumentation.runOnMainSync { scene.drag(com.pico.spatial.core.math.Vector3(0f,-.045f*S,0f)) }
+        waitForPose { it.y<TowerScene.restY(17)+.02f*S }
         instrumentation.runOnMainSync { scene.release() }
         Thread.sleep(6000)
         instrumentation.runOnMainSync {
@@ -92,9 +96,9 @@ class RuntimePhysicsTest {
             assertEquals(Phase.PLAYING,scene.inspection().second.phase)
             scene.start()
             scene.grab(scene.root.getChildren().first { it.getName()=="Wood_49" })
-            scene.drag(com.pico.spatial.core.math.Vector3(.14f,0f,0f))
+            scene.drag(com.pico.spatial.core.math.Vector3(.14f*S,0f,0f))
         }
-        waitForPose { it.x>.13f }
+        waitForPose { it.x>.13f*S }
         instrumentation.runOnMainSync { scene.release() }
         Thread.sleep(4500)
         instrumentation.runOnMainSync {
@@ -110,7 +114,7 @@ class RuntimePhysicsTest {
             assertNull(state.selected)
             assertEquals(0,state.score)
             assertTrue(abs(poses[49].x)<.001f)
-            assertTrue(abs(poses[49].y-.09982f)<.001f)
+            assertTrue(abs(poses[49].y-TowerScene.restY(16))<.001f)
             scene.grab(scene.root.getChildren().first { it.getName()=="Wood_49" })
             scene.requestRestart()
             assertEquals(Phase.RESTART,scene.inspection().second.phase)
